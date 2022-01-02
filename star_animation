@@ -1,0 +1,188 @@
+using ProgressMeter
+
+function drawline(startpt, endpt, colour, α, p)
+    xi, yi = startpt
+    xf, yf = endpt
+    xs = range(xi, xf, length=100)
+    ys = range(yi, yf, length=100)
+    plot!(p, xs, ys, color=colour, label=:none, alpha = α, linewidth=3)
+    return current()
+end
+
+function drawstar(pts, skip, colour, α, p, θ=0)
+    if gcd(pts, skip) ≠ 1
+        error("Numbers are not coprime. Please try again with two numbers that are.")
+    end
+    if skip ≤ 1 || skip ≥ pts-1
+        error("Second number must be between 2 and the size of the star.")
+    end
+    angles = (2*π/pts) .* mod.(collect(0:pts-1) .* skip, pts) .+ θ
+    x = cos.(angles)
+    y = sin.(angles)
+    for i in 1:pts-1
+        drawline((x[i],y[i]), (x[i+1],y[i+1]), colour, α, p)
+    end
+    drawline((x[1], y[1]), (x[pts], y[pts]), colour, α, p)
+    return current()
+end
+
+function drawcirclepoints(pts, skip, θ, p)
+    radius = skip/pts
+    center = (1-radius) .* [cos(θ), sin(θ)]
+    #draw the circle
+    # angles = collect(range(0, 2*π, length=1000))
+    # circlex, circley = radius .* cos.(angles) .+ center[1], radius .* sin.(angles) .+ center[2]
+    # plot!(p, circlex, circley, color=:black, label=:none)
+    #draw points on the circle
+    ptradius = sin(skip*π/(2*pts))^2*2 - radius
+    ptangles = collect(range(-θ*(pts-skip)/skip, 2*π - θ*(pts-skip)/skip, length=skip+1))
+    ptx, pty = ptradius .* cos.(ptangles) .+ center[1], ptradius .* sin.(ptangles) .+ center[2]
+    scatter!(p, ptx, pty, color=:red, label=:none, markersize=5, markerstrokealpha=0)
+    return current()
+end
+
+function drawcircles(pts, skip, θ, p)
+    circangles = θ .+ collect(range(0, 2*π, length=pts-skip+1))
+    for θi in circangles
+        drawcirclepoints(pts, skip, θi, p)
+    end
+    return current()
+end
+
+function drawtriangles(pts, skip, θ, α, p)
+    radius = skip/pts
+    circangles = θ .+ collect(range(0, 2*π, length=pts-skip+1))
+    xcenters = (1-radius) .* cos.(circangles)
+    ycenters = (1-radius) .* sin.(circangles)
+    ptradius = sin(skip*π/(2*pts))^2*2 - radius
+    ptangles = collect(range(-θ*(pts-skip)/skip, 2*π - θ*(pts-skip)/skip, length=skip+1))
+    for i in 1:pts-skip
+        # θi = circangles[i]
+        ptx, pty = ptradius .* cos.(ptangles) .+ xcenters[i], ptradius .* sin.(ptangles) .+ ycenters[i]
+        for j in 1:length(ptx)-1
+            drawline((ptx[j],pty[j]), (ptx[j+1],pty[j+1]), :green, α, p)
+        end
+        drawline((ptx[1],pty[1]), (ptx[end],pty[end]), :green, α, p)
+    end
+    return current()
+end
+
+function drawsquares(pts, skip, θ, α, p)
+    radius = skip/pts
+    circangles = θ .+ collect(range(0, 2*π, length=pts-skip+1))
+    xcenters = (1-radius) .* cos.(circangles)
+    ycenters = (1-radius) .* sin.(circangles)
+    ptradius = sin(skip*π/(2*pts))^2*2 - radius
+    ptangles = collect(range(-θ*(pts-skip)/skip, 2*π - θ*(pts-skip)/skip, length=skip+1))
+    for i in 1:skip
+        ptx, pty = ptradius * cos(ptangles[i]) .+ xcenters, ptradius * sin(ptangles[i]) .+ ycenters
+        for j in 1:length(ptx)-1
+            drawline((ptx[j],pty[j]), (ptx[j+1],pty[j+1]), :blue, α, p)
+        end
+        drawline((ptx[1],pty[1]), (ptx[end],pty[end]), :blue, α, p)
+    end
+    return current()
+end
+
+# n, m = 17, 7
+println("How many points in the star?")
+n = parse(Int, readline())
+println("Skip how many points?")
+m = parse(Int, readline())
+println("Filename to save to?")
+fname = readline()
+fname = fname[end-3:end]==".gif" ? fname : fname*".gif"
+println("Processing...")
+using Plots
+anim = Plots.Animation()
+prog = Progress(800, 0.1)
+for θ in range(0, π/2, length=51)[1:end-1]
+    plt = plot(aspect_ratio=:equal, xlim=[-1.25,1.25], ylim=[-1.25,1.25], grid=false, ticks=false, showaxis=false)
+    drawcircles(n, m, θ, plt)
+    Plots.frame(anim)
+    ProgressMeter.next!(prog)
+end
+for (θ, α) in zip(range(π/2, π, length=51)[1:end-1], range(0, 0.5, length=51)[1:end-1])
+    plt = plot(aspect_ratio=:equal, xlim=[-1.25,1.25], ylim=[-1.25,1.25], grid=false, ticks=false, showaxis=false)
+    drawtriangles(n, m, θ, α, plt)
+    drawcircles(n, m, θ, plt)
+    Plots.frame(anim)
+    ProgressMeter.next!(prog)
+end
+for θ in range(π, 2*π, length=101)[1:end-1]
+    plt = plot(aspect_ratio=:equal, xlim=[-1.25,1.25], ylim=[-1.25,1.25], grid=false, ticks=false, showaxis=false)
+    drawtriangles(n, m, θ, 0.5, plt)
+    drawcircles(n, m, θ, plt)
+    Plots.frame(anim)
+    ProgressMeter.next!(prog)
+end
+for (θ, α) in zip(range(2*π, 5*π/2, length=51)[1:end-1], range(0.5, 0, length=51)[1:end-1])
+    plt = plot(aspect_ratio=:equal, xlim=[-1.25,1.25], ylim=[-1.25,1.25], grid=false, ticks=false, showaxis=false)
+    drawtriangles(n, m, θ, α, plt)
+    drawcircles(n, m, θ, plt)
+    Plots.frame(anim)
+    ProgressMeter.next!(prog)
+end
+for (θ, α) in zip(range(5*π/2, 3*π, length=51)[1:end-1], range(0, 0.5, length=51)[1:end-1])
+    plt = plot(aspect_ratio=:equal, xlim=[-1.25,1.25], ylim=[-1.25,1.25], grid=false, ticks=false, showaxis=false)
+    drawsquares(n, m, θ, α, plt)
+    drawcircles(n, m, θ, plt)
+    Plots.frame(anim)
+    ProgressMeter.next!(prog)
+end
+for θ in range(3*π, 4*π, length=101)[1:end-1]
+    plt = plot(aspect_ratio=:equal, xlim=[-1.25,1.25], ylim=[-1.25,1.25], grid=false, ticks=false, showaxis=false)
+    drawsquares(n, m, θ, 0.5, plt)
+    drawcircles(n, m, θ, plt)
+    Plots.frame(anim)
+    ProgressMeter.next!(prog)
+end
+for (θ, α) in zip(range(4*π, 9*π/2, length=51)[1:end-1], range(0.5, 0, length=51)[1:end-1])
+    plt = plot(aspect_ratio=:equal, xlim=[-1.25,1.25], ylim=[-1.25,1.25], grid=false, ticks=false, showaxis=false)
+    drawsquares(n, m, θ, α, plt)
+    drawcircles(n, m, θ, plt)
+    Plots.frame(anim)
+    ProgressMeter.next!(prog)
+end
+for (θ, α) in zip(range(9*π/2, 5*π, length=51)[1:end-1], range(0, 0.5, length=51)[1:end-1])
+    plt = plot(aspect_ratio=:equal, xlim=[-1.25,1.25], ylim=[-1.25,1.25], grid=false, ticks=false, showaxis=false)
+    drawstar(n, m, :gray, α, plt)
+    drawcircles(n, m, θ, plt)
+    Plots.frame(anim)
+    ProgressMeter.next!(prog)
+end
+for θ in range(5*π, 6*π, length=101)[1:end-1]
+    plt = plot(aspect_ratio=:equal, xlim=[-1.25,1.25], ylim=[-1.25,1.25], grid=false, ticks=false, showaxis=false)
+    drawstar(n, m, :gray, 0.5, plt)
+    drawcircles(n, m, θ, plt)
+    Plots.frame(anim)
+    ProgressMeter.next!(prog)
+end
+for (θ, α) in zip(range(6*π, 13*π/2, length=51)[1:end-1], range(0, 0.5, length=51)[1:end-1])
+    plt = plot(aspect_ratio=:equal, xlim=[-1.25,1.25], ylim=[-1.25,1.25], grid=false, ticks=false, showaxis=false)
+    drawstar(n, m, :gray, 0.5, plt)
+    drawsquares(n, m, θ, α, plt)
+    drawtriangles(n, m, θ, α, plt)
+    drawcircles(n, m, θ, plt)
+    Plots.frame(anim)
+    ProgressMeter.next!(prog)
+end
+for θ in range(13*π/2, 15*π/2, length=101)[1:end-1]
+    plt = plot(aspect_ratio=:equal, xlim=[-1.25,1.25], ylim=[-1.25,1.25], grid=false, ticks=false, showaxis=false)
+    drawstar(n, m, :gray, 0.5, plt)
+    drawsquares(n, m, θ, 0.5, plt)
+    drawtriangles(n, m, θ, 0.5, plt)
+    drawcircles(n, m, θ, plt)
+    Plots.frame(anim)
+    ProgressMeter.next!(prog)
+end
+for (θ, α) in zip(range(15*π/2, 8*π, length=51)[1:end-1], range(0.5, 0, length=51)[1:end-1])
+    plt = plot(aspect_ratio=:equal, xlim=[-1.25,1.25], ylim=[-1.25,1.25], grid=false, ticks=false, showaxis=false)
+    drawstar(n, m, :gray, α, plt)
+    drawsquares(n, m, θ, α, plt)
+    drawtriangles(n, m, θ, α, plt)
+    drawcircles(n, m, θ, plt)
+    Plots.frame(anim)
+    ProgressMeter.next!(prog)
+end
+gif(anim, fname, fps=20)
