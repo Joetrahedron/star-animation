@@ -1,0 +1,78 @@
+using ProgressMeter
+using Plots
+
+function drawline(startpt, endpt, colour, p)
+    xi, yi = startpt
+    xf, yf = endpt
+    xs = range(xi, xf, length=100)
+    ys = range(yi, yf, length=100)
+    plot!(p, xs, ys, color=colour, label=:none, linewidth=3)
+    return current()
+end
+
+function drawstar(pts, skip, colour, p, θ=0)
+    if gcd(pts, skip) ≠ 1
+        error("Numbers are not coprime. Please try again with two numbers that are.")
+    end
+    if skip ≤ 1 || skip ≥ pts-1
+        error("Second number must be between 2 and the size of the star.")
+    end
+    angles = (2*π/pts) .* mod.(collect(0:pts-1) .* skip, pts) .+ θ
+    x = cos.(angles)
+    y = sin.(angles)
+    for i in 1:pts-1
+        drawline((x[i],y[i]), (x[i+1],y[i+1]), colour, p)
+    end
+    drawline((x[1], y[1]), (x[pts], y[pts]), colour, p)
+    return current()
+end
+
+function star(n)
+    p = plot(aspect_ratio=:equal, xlim=[-1.25,1.25], ylim=[-1.25,1.25], grid=false, ticks=false, showaxis=false)
+    for i in 1:n
+        println("For star number $i:")
+        println("How many total points?")
+        pts = parse(Int, readline())
+        println("How many points to skip?")
+        skip = parse(Int, readline())
+        println("What colour?")
+        colour = Colors.parse(Colorant, readline())
+        drawstar(pts, skip, colour, p)
+    end
+    return current()
+end
+
+function spinstar(n)
+    ptslist = []
+    skiplist = []
+    colourlist = []
+    rotlist = []
+    for i in 1:n
+        println("For star number $i:")
+        println("How many total points?")
+        push!(ptslist, parse(Int, readline()))
+        println("How many points to skip?")
+        push!(skiplist, parse(Int, readline()))
+        println("What colour?")
+        push!(colourlist, Colors.parse(Colorant, readline()))
+        println("Rotation? (0 for none, positive integer for CCW, negative for CW)")
+        push!(rotlist, parse(Int, readline()))
+    end
+    println("Filename to save to?")
+    fname = readline()
+    fname = fname[end-3:end]==".gif" ? fname : fname*".gif"
+    prog = Progress(50, 0.1)
+    rotrate = reduce(gcd, ptslist[filter(x->rotlist[x]!=0, collect(1:n))])
+    adj = 1 #factor to avoid rotation that is too slow
+    while rotrate/adj > 30
+        adj += 1
+    end
+    anim = @animate for θ in range(0, 2*π*adj/rotrate, length=51)[1:end-1]
+        p = plot(aspect_ratio=:equal, xlim=[-1.25,1.25], ylim=[-1.25,1.25], grid=false, ticks=false, showaxis=false)
+        for i in 1:n
+            drawstar(ptslist[i], skiplist[i], colourlist[i], p, θ*rotlist[i])
+        end
+        ProgressMeter.next!(prog)
+    end
+    gif(anim, fname, fps=30)
+end
